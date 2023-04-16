@@ -327,13 +327,11 @@ class feature_layer:
                     if n.word != None:
                         self.word_neuron_dict[str(n.word)].direct_update(0.8)
                         all_activated_words.append(n.word)
-#                         if n.subject:
-#                             self.word_neuron_dict[str(n.word)].direct_update(0.2) # an additional bit of activation for being the subject of the sentence
+
                     if n.morpheme != None:
                         self.morph_dict[str(n.morpheme)].direct_update(0.8)
                         all_activated_morphemes.append(n.morpheme)
-#                         if n.morpheme==0:
-#                             self.morph_dict[str(n.morpheme)].direct_update(0.2) # an additional bit of activation for being the subject of the sentence
+
         except:
             if in_index.word != None:
                 self.word_neuron_dict[str(in_index.word)].direct_update(1)
@@ -665,7 +663,7 @@ def run_model(model, time_steps, sentence):
 
     
 def recall_feat_layer(model, activated_node, n_steps=500, initial_steps=5):
-    # recall functions activates a node and then updates all activations then decays and repeats; hence it skips the update connection step.
+    '''Recall function which activates a node and then updates all activations then decays and repeats; hence it skips the update connection step.'''
     
     cc_conn_array = [] # the rapid plasticity encoding weights between role neurons
     c_act_array = [] # the role neuron activations
@@ -716,11 +714,6 @@ def recall_feat_layer(model, activated_node, n_steps=500, initial_steps=5):
     return np.array(cc_conn_array), np.array(c_act_array), np.array(cf_conn_array), np.array(f_act_array), np.array(cc_long_weights_list), np.array(wc_long_weights_list), np.array(morph_array), np.array(wm_conn_array)
 
 
-
-
-# def learning_visualisation():
-    
-#     return
 
 
 def plot_results(sentence, ceiling_cc, floor_cc, ceiling_cf, floor_cf, LT_cc_knowledge, LT_wc_knowledge, cc_history, cf_history, c_firing, f_firing, morph_act_hx=None, no_periods=1):
