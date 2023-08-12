@@ -5,18 +5,23 @@
 # 6/2023 - with different syntaxes
 # 7/2023 - use strings as input
 # 8/2023 - create EEGs
+# 7.8.23 tring to get russian to work
 #%% 
 
 from numpy import *    # make life easy
 from pdb import pm
-
+from enum import Enum
 """
 Overall structure
   - class Model - model parameters and long-term weights.
   - class Language - words and syntax as strings.
   - class Input - the sequence of input vectors for the model and language
-  - class State - the neural network activations and short-term weights
+  - class State - the neural network activations F,C, and short-term weights wfc,wcc
 
+do_one_timestep():
+  - the main function that computes neural activity.
+main_...():
+  - functions to run specific simulations.  
 
  1) Create a Model(), then a Language()
  2) Call model.setup_language(l) to store the language in the model's synapses.
@@ -27,16 +32,14 @@ Overall structure
 """
 
 class Language:
-  """ Syntax and words of a language """
+  """ Specify syntax and words of a language """
   def __init__(L):
     """		Basic default language definition:    """
-    # words begin with a word class and an identifier.
-    # e.g. R=article, N=noun, J=adjective
-    L.words = 'R0 N0 V0 R1 N1 J0 J1'.split()
 
     # roles begin with a letter indicating the word class
+    # e.g. R=article, N=noun, J=adjective, V=verb
     # followed by a specifier. e.g.
-					# 'NO' means noun in the object position.
+    # 'NO' could be used to mean "noun in the object position".
     L.roles = 'RS NS V RO NO JS'.split()
 
     # allow these role sequences:
@@ -45,12 +48,17 @@ class Language:
       'RS JS NS V RO NO'
     ]
 
+    # words begin with a word class and an identifier.
+    L.words = 'R0 N0 V0 R1 N1 J0 J1'.split()
+
     # Input string
     L.I_string = 'R0 N0 V0 R1 N1'.split()
 
+#################################################################
 
 class Model:
-  def __init__( M, low_accuracy = False):
+  Regime = Enum('Regime', ['Simple','Morphemes','Aphasias','PrimeCompr','PrimeProd'])
+  def __init__( M, regime = Regime.Morphemes ):
     """ return a model M.
         Long term weights are in model, M
         Short-term weights are in the state, S.
@@ -62,12 +70,23 @@ class Model:
     M.learnCC   = 30     # learning rate for CF weights
     M.learnFC   = 2      #               for CC weights
     M.gainWff   = -0.5   # inhibition between features of same dimension
-    M.gainWccL  = 5.7    # gain of long-term weights
-    M.gainWfcL  = 1.7
-    M.rangeWfc  = (-1,2) # constrain short term weights to this range
+    M.gainWccL  = 5.7    # gain of long-term weights  k_L
+    M.gainWfcL  = 1.7    # 
+    M.rangeWfc  = (-1,2) # constrain short term weights to this range (-k, eps-k)
     M.rangeWcc  = (-5,1)
     M.noiseC    = 0.02
     M.recallBias= 0.5    # change in gain at recall
+    
+    if regime == Model.Regime.Morphemes:
+      M.gainWfcL = 3.7
+      M.rangeWfc = (-2,4)
+      M.gainWccL = 15.7
+      M.learnCC  = 50
+      M.rangeWcc = (-15,8)
+      M.gainWff  = -1
+    elif regime == Model.Regime.Aphasias:
+      pass
+      
     M.dt        = 0.5    # timestep size
 
     # three useful sigmoid functions
@@ -75,82 +94,15 @@ class Model:
     M.sigmoid = lambda x,k: 1/(1+exp(-10*(x-k)))
     M.lim_to  = lambda x,r: maximum(r[0], minimum(r[1],x))
 
-  def setup_language(M,L):
-    """
-    # 3. Set up synapses based on this specified language
-    """
-    M.L = L
-    M.NF = len(L.words) # number of words (features)
-    M.NC = len(L.roles) # number of roles (conjunctions)
 
- 	  # set up long-term word-to-role synapses, based on the language
-    M.Wfc_l = zeros((M.NC,M.NF))
-
-    for i,w in enumerate(L.words):  # for each word neuron
-     for j,r in enumerate(L.roles): # for each role
-        # does the word start with the same letter as the role does?
-        if w[0] == r[0]:
-          M.Wfc_l[ j,i ] = +1  # if so, make a synapse
- 	    # set up long-term role-to-role synapses, based on language:
-    M.Wcc_l = zeros((M.NC,M.NC))
-    def allow(sentence):
-      """ allow a particular syntax """
-      u=sentence.split() # get the sequence of roles
-      for i in range(len(u)-1):
-        # allow the connection between role i and i+1
-        M.Wcc_l [ L.roles.index(u[i+1]), L.roles.index(u[i]) ]  += 1
-      M.Wcc_l = minimum(M.Wcc_l,1) # don't let values go above 1
-    for s in L.permitted_sentences:
-      allow( s )
-    # long-term word-to-word inhibition
-    M.Wff = ones((M.NF,M.NF))
-
-class Input:
-  def __init__(I,M):
-    """
-    4. Setup Input sequence - creates input I for a model,
-       based on the model M and language M.L
-    """
-    string = M.L.I_string # get words to use as input
-
-    # duration for each stage of the input
-    # 1 timestep of -1, then 50 ts for each word.
-    # then 100 ts delay, 5 ts retrieval cue, then 200 ts retrieval time.
-    I.durations = [1] + [50]*len(string) + [100,  5, 200]
-    # calculate the time at start of recall
-    I.recall_time = sum(I.durations[:-2])
-
-    # Stages of input to the feature units (each row is one stage)
-    # Each F unit receives input to keep it at the given value.
-    # NaN means no external input to the network
-    # Last column means "recall phase".
-    #   2 = stimulate c[0]. >0 = use recall bias.
-    # These get put into S.stim, at the appropriate timesteps.
-
-    # create the word stimulus array
-    I.word_indices = [ M.L.words.index(w) for w in string ]
-    word_stim = array([
-      array([w==stim_word  for w in M.L.words])*2-1
-      for stim_word in string
-    ])
-    # add -1 inputs at start, at end, and then zeros for recall.
-    I.stimulus = c_[
-      [-1]*M.NF ,
-      word_stim.T,
-      [-1]*M.NF,
-      [ 0]*M.NF,
-      [ 0]*M.NF  ].T
-    # add two columns, one for the recall cue (input to the first role unit),
-    # and another for the recall phase (1 or 0)
-    I.stimulus = c_[ I.stimulus,
-                    [[1,0]] + [[0,0]]*(len(string)+1) + [[1,1],[0,1]] ]
-
-#################################################################
-
-def do_one_timestep(S,M):
-    """update the state S with one time step
+  from numba import jit
+  @jit(forceobj=True) # speed up the maths 
+  def do_one_timestep(M,S):
+    """update the state S by one time step
        S = current model state. Must contain the current input, as S.stim.
-       M = model parameters
+       M = model parameters.
+    This function only changes S.F and S.C, the feature and conjunction activations,
+    and S.Wfc and S.Wcc, the short-term weights.
     """
 
     Wfc  = S.Wfc + M.gainWfcL * M.Wfc_l    # overall weights =
@@ -193,6 +145,83 @@ def do_one_timestep(S,M):
 
     return S
 
+  def setup_language(M,L):
+    """
+    # Set up synapses based on this specified language
+    """
+    M.L = L
+    M.NF = len(L.words) # number of words (features)
+    M.NC = len(L.roles) # number of roles (conjunctions)
+
+    # set up long-term word-to-role synapses, based on the language
+    M.Wfc_l = zeros((M.NC,M.NF))
+    for i,w in enumerate(L.words):  # for each word neuron
+     for j,r in enumerate(L.roles): # for each role
+        # does the word start with the same letter as the role does?
+        if w[0] == r[0]:
+          M.Wfc_l[ j,i ] = +1  # if so, make a synapse
+    
+ 	  # set up long-term role-to-role synapses, based on language:
+    M.Wcc_l = zeros((M.NC,M.NC))
+    def allow(sentence):
+      """ allow a particular syntax """
+      u=sentence.split() # get the sequence of roles
+      for i in range(len(u)-1):
+        # allow the connection between role i and i+1
+        M.Wcc_l [ L.roles.index(u[i+1]), L.roles.index(u[i]) ]  += 1
+      M.Wcc_l = minimum(M.Wcc_l,1) # don't let values go above 1
+    for s in L.permitted_sentences:
+      allow( s )
+    # normalise each row to add up to 1
+    norm_val = M.Wcc_l.sum(axis=1)  # sum of weights for each row 
+    norm_val[norm_val==0] = 1       # leave zero-rows as zero  (but what if it's close to zero??...)
+    M.Wcc_l = M.Wcc_l / norm_val[:,None]  # divide by the total
+    
+    # long-term word-to-word inhibition
+    M.Wff = ones((M.NF,M.NF))
+
+#################################################################
+
+class Input:
+  def __init__(I,M):
+    """
+    Setup Input sequence - creates input I for a model,
+    based on the model M and language M.L. 
+    Input.stimulus is the matrix of word neuron activations, 
+    for each time stage. 
+      Stages of input to the feature units (each row is one stage)
+      Each F unit receives input to keep it at the given value.
+      NaN means no external input to the network
+      Last column means "recall phase".
+        2 = stimulate c[0]. >0 = use recall bias.
+      These get put into S.stim, at the appropriate timesteps.
+    """
+    string = M.L.I_string # get words to use as input
+
+    # Duration for each stage of the input
+    # 1 timestep of -1, then 50 ts for each word.
+    # then 100 ts delay, 5 ts retrieval cue, then 200 ts retrieval time.
+    I.durations = [50] + [50]*len(string) + [100,  5, 200]
+    # Calculate the time at start of recall
+    I.recall_time = sum(I.durations[:-2])
+
+    # create the word stimulus array
+    I.word_indices = [ M.L.words.index(w) for w in string ]
+    word_stim = array([
+      array([w==stim_word  for w in M.L.words])*2-1
+      for stim_word in string
+    ])
+    # add -1 inputs at start, at end, and then zeros for recall.
+    I.stimulus = c_[
+      [-1]*M.NF ,
+      word_stim.T,
+      [-1]*M.NF,
+      [ 0]*M.NF,
+      [ 0]*M.NF  ].T
+    # add two columns, one for the recall cue (input to the first role unit),
+    # and another for the recall phase (1 or 0)
+    I.stimulus = c_[ I.stimulus,
+                    [[1,0]] + [[0,0]]*(len(string)+1) + [[1,1],[0,1]] ]
 
 #################################################################
 
@@ -225,7 +254,7 @@ def single_trial(M,I,S, plot_interval = 10):
         S.stim = I.stimulus[stage,:][:,None]   # select a row, convert to column
 
         # 2. Run one timestep
-        S = do_one_timestep(S,M)
+        S = M.do_one_timestep(S)
         if (time % plot_interval)==0:
           S.F_t = F_t
           S.C_t = C_t
@@ -240,34 +269,11 @@ def single_trial(M,I,S, plot_interval = 10):
     winF_t  = S.F_t[I.recall_time:,:].argmax( axis=1 ) # winner at each time
     changes = diff(concatenate(([-1], winF_t)))    # points where winner changes
     S.out   = winF_t[ abs(changes)>0 ]             # grab values at change points
-    S.acc   = slide_match( S.out, I.word_indices ) # best accuracy
+    import matlib
+    S.acc   = matlib.slide_match( S.out, I.word_indices ) # best accuracy
     
     return S
 
-def slide_match(x,y):
-  """ slide two 1-dimensional arrays along each other to find best match.
-  x = large array, in which to find y.
-  Example: if x = [1,2,3,4,5,6,7,8,9,10] and y = [3,4,5], then the best match
-  is at position 2, where x[2:5] = [3,4,5], and the match proportion is 1.0.
-  If x = [1,2,3,4,5,6,7,8,9,10] and y = [7,6,5], then the best match is at
-  any of positions 6,7,8, e.g. where x[6] = 6, and the match proportion is 1/3.
-  """
-  x=array(x) # ensure numpy arrays
-  y=array(y)
-  assert(len(x.shape)==1) # ensure 1 dimensional
-  assert(len(y.shape)==1)
-  if len(x)<len(y): # ensure x is at least as large as y
-    x = r_[x, nan*ones(len(y)-len(x))]
-  # how many different positions are there, if you slide y along x?
-  num_slides = len(x)-len(y) + 1 
-  # empty array for calculating the proportion of words that match, 
-  # for each slide potition.
-  match_prop = nan*zeros(num_slides)
-  # for each sliding position
-  for i in range( num_slides ):
-    # calculate what proportion of the words in y match the words in x
-    match_prop[i] = mean( x[i:(i+len(y))] == y )
-  return match_prop.max()
 
 
 ############################################################
@@ -340,7 +346,7 @@ def display_result(S,M, update=False, save=False):
       f.savefig('sunlin_test_02.svg')
       time.sleep(1e-2)
 
-#################### Entry point
+#################### Entry points
 
 def main_one_trial_only(S=None, L=None):
 
@@ -349,9 +355,10 @@ def main_one_trial_only(S=None, L=None):
       or an input I.
      """
     M = Model()  # create Model
-    # create language and save it within the model
-    L = Language()
-		# run the language setup, based on L
+    # create language 
+    if L is None: 
+      L = Language()
+	# run the language setup, based on L
     M.setup_language(L)
     I = Input(M) # create Input for this model and language
     if S is None:
@@ -387,28 +394,34 @@ def main_range():
     return array(acc).reshape((-1,num_repeats))
 
 
-#%% EEG SIM SECTION #######################################################
+##% EEG SIM SECTION #######################################################
 import sys
 sys.path.append("D:\Experiment\Sanjay\Hu")
-import matlib
 import numpy as np
+import matlib
 
 
 def make_eeg(S, # state of the model after simulating one trial
              lag=15,
-             pre_smoothing=10,
+             pre_smoothing=0,#10,
              temporal_derivative=True,
              neurons = "all",
              post_smoothing=30,
-             type="bipolar"
+             type="energy"
              ):
   """
+  type = "bipolar"
   To produce an EEG, from a single trial, we take the 
-  take the activation of the neurons, apply temporal smoothing of 
+  take the activation of all the neurons, apply temporal smoothing of 
   width 10 timesteps, then take the absolute differences between all pairs 
   of neurons, to simulate many dipoles. We then apply a temporal 
   derivative of these, and add a 15 timestep lag. 
-  type = "bipolar", "linear", "energy".
+  "linear"
+  "energy"
+  To produce an EEG from a single trial, we add up the squared
+  activation of all the neurons, apply a temporal derivative, 
+  then a 30 timestep gaussian smoothing, and a 15 timestep delay. 
+
   neurons = "all", "conjunctive", "word"
   """
   
@@ -420,10 +433,11 @@ def make_eeg(S, # state of the model after simulating one trial
     y = c_[S.C_t, S.F_t]  # take all neurons
 
   # temporal smoothing each channel separately
-  y = matlib.smoothn( y , pre_smoothing, kernel='gauss' )
+  if pre_smoothing:
+    y = matlib.smoothn( y , pre_smoothing, kernel='gauss' )
 
   if type=="energy":
-    y = (y-0.2)**2        # deviation or energy
+    y = (y-0.)**2        # deviation or energy
     y = y.sum( axis=1 )   # sum across channels
   elif type=="bipolar":
     # compute array of differences between channels
@@ -437,7 +451,8 @@ def make_eeg(S, # state of the model after simulating one trial
   if temporal_derivative:
     y = np.diff( y ) # time derivative
 
-  y = matlib.smoothn( y , post_smoothing,kernel='gauss' )
+  if post_smoothing:
+    y = matlib.smoothn( y , post_smoothing,kernel='gauss' )
 
   # finally introduce a lag
   y = r_[nan*ones(lag), y[:-lag]]
@@ -448,15 +463,27 @@ def make_eeg(S, # state of the model after simulating one trial
 def simulate_sentences(
              sentences,
              num_trials = 30, # trials per condition
-             compute_eeg = False
+             compute_eeg = False,
+             shuffle_trials = True
              ):
   """ 
-  Run a simulation for each condition, and plot the EEG.
-  Conditions are defined by sentences = { condition_name: [list of words] , ... }.
+  Run simulations for each condition.
+
+  Conditions are defined by
+  sentences = { condition_name: [list of words] , ... }
+  num_trials:        number of trials per condition
+  compute_eeg=True:  calls make_eeg then plots the average EEGs
+  shuffle_trials:    randomly interleave the conditions
+
+  If condition names contain an underscore, the part before the underscore is a 
+  condition group that is averaged and plotted together.
   """
-  import copy
 
   L = Language()       # create default language
+  # collect together all words in the sentences
+  # in some versions, we need to change this to 
+  # __builtins__['sum']( ... )
+  L.words = list(set(__builtins__.sum(sentences.values(),[]))) 
   M = Model()          # create Model
   M.setup_language(L)  # set up model weights from language
 
@@ -465,81 +492,116 @@ def simulate_sentences(
   # create a random trial sequence
   conditions = list(sentences.keys())
   trial_sequence = list(range(len(conditions)))*num_trials
-  np.random.shuffle(trial_sequence) # in-place shuffle
+  if shuffle_trials:
+    np.random.shuffle(trial_sequence) # in-place shuffle
 
   results = { k:[] for k in conditions } # empty lists for each result
+  import copy
+  #from tqdm import tqdm
   for ci in trial_sequence:
     cond = conditions[ci] # name of the current condition
     M.L.I_string = sentences[cond]
     I = Input(M) 
     S = single_trial(M,I,S,plot_interval = 1e10)  
-    results[cond].append( copy.deepcopy(S) )
+    results[cond].append( copy.deepcopy(S) ) # store copy of state
 
   # compute mean accuracy for each condition
   acc = { 
-    cond: mean(np.array([ i.acc for i in results[cond] ]))
+    cond: np.array([ i.acc for i in results[cond] ])
     for cond in conditions
     }
 
   import matplotlib.pyplot as plt
   if compute_eeg:
+    import collections
     # convert results into EEGs, calling make_eeg() for each trial
-    eegs = {
-      cond: np.array([ make_eeg(r) for r in results[cond] ])
-      for cond in conditions
-      }
+    # aggregate matching conditions
+    cond_labels = list(set([ c.split('_')[0] for c in results.keys() ]))
+    eegs = collections.defaultdict(list)
+    for k,v in results.items(): # for each condition
+      label = k.split('_')[0] # work out which group it belongs to
+      for s in v: # for each trial in that condition
+        eegs[ label ].append( make_eeg(s) ) # compute EEG and store
+    eegs = {k:np.array(v) for k,v in eegs.items()} # convert to arrays
     
     # PLOT EEG
     plt.clf()
     plt.subplot(2,1,1)
     for cond,data in eegs.items(): # plot each condition's mean EEG
       matlib.errorBarPlot( data )
-    plt.legend([sentences[i] for i in conditions])
-    plt.plot( cumsum(I.durations)[None,:]*array([[1],[1]]), plt.ylim(),'k:')
-    plt.subplot(2,1,2) 
-    # plot difference between conditions 1 and 0:
-    plt.plot( mean(eegs[conditions[0]],axis=0) - mean(eegs[conditions[1]],axis=0) )
+    plt.legend([
+      [sentences[i] for i in conditions if i.startswith(l)][0]
+      for l in cond_labels
+      ]) # add legend for each group of conditions
     # add event markers as vertical dotted lines
     plt.plot( cumsum(I.durations)[None,:]*array([[1],[1]]), plt.ylim(),'k:')
+    plt.subplot(2,1,2) 
+    # plot difference between pairs of conditions:
+    legends = []
+    for c1 in cond_labels:
+      for c2 in cond_labels:
+        if c1 != c2 and c1<c2: # only plot each pair once
+          plt.plot( mean(eegs[c1],axis=0) - mean(eegs[c2],axis=0) )
+          legends.append( c1 + " - " + c2 )
+    # add event markers as vertical dotted lines+
+    plt.plot( cumsum(I.durations)[None,:]*array([[1],[1]]), plt.ylim(),'k:')
+    plt.legend(legends)
+    plt.show()
+    savefig("eeg.svg")
     return eegs, acc
   else: # PLOT ACCURACY
     import seaborn as sns
     import pandas as pd
     import matplotlib.pyplot as plt
     plt.clf()
-    pd.DataFrame(acc, index=[0]).plot(kind="bar")
+    pd.DataFrame(acc).mean().plot(kind="bar")
     plt.show()
     return acc
-#%% test EEG simulation
-def test_eeg():
+##% test EEG simulation
+def main_eeg():
   eegs, acc = simulate_sentences({
-    'normal':  "R0 N0 V0 R1 N1".split(),
-    'synviol': "R0 N0 V0 N1 R1".split() 
-    }  , compute_eeg=True ) 
-#%% compare adjectives and swapping the nouns
-def test_syntaxes():
+    'normal_0':  "R0 N0 V0 R1 N1".split(),
+    'normal_1':  "R0 N1 V0 R1 N0".split(),
+    'normal_2':  "R0 N0 V0 R1 N2".split(),
+    'normal_3':  "R0 N2 V0 R1 N0".split(),
+    'normal_4':  "R0 N1 V0 R1 N2".split(),
+    'normal_5':  "R0 N2 V0 R1 N1".split(),
+    'synviol_0': "R0 N0 V0 N1 R1".split(), 
+    'synviol_1': "R0 N1 V0 N0 R1".split(), 
+    'synviol_2': "R0 N0 V0 N2 R1".split(), 
+    'synviol_3': "R0 N2 V0 N0 R1".split(), 
+    'synviol_4': "R0 N1 V0 N2 R1".split(), 
+    'synviol_5': "R0 N2 V0 N1 R1".split() 
+    }  , compute_eeg=True , num_trials=10) 
+##% compare adjectives and swapping the nouns
+def main_syntaxes():
   return simulate_sentences( { 
     'normal':     "R0 N0 V0 R1 N1".split() ,
     'swapnoun':   "R0 N1 V0 R1 N0".split() ,
-    'adjective':  "R0 J0 N0 V0 R1 N1".split(),
+    'adjective':  "R0 J0 N0 V0 R1 N1".split() ,
     'repnoun':    "R0 N0 V0 R1 N0".split() ,
     'earlyviol':  "R0 V0 N0 R1 N1".split() ,
-    'lateviol':   "R0 N0 V0 N1 R1".split() ,
-  }, compute_eeg=False, num_trials=100 )
+#    'lateviol':   "R0 N0 V0 N1 R1".split() #,
+  }, compute_eeg=False, num_trials=10 , shuffle_trials=False)
+
+def main_russian():
+  L = Language()
+  L.permitted_sentences = [
+    'RS NS V', 'NS V RS', 'V RS NS',
+    'V NS RS', 'NS RS V', 'RS V NS' ] # all possible orderings of a 3 word sentence
+  L.permitted_sentences = []
+  L.I_string = 'R0 N0 V0'.split()
+  return main_one_trial_only(L=L)
+
+  
 
 # %%
-run_profile = True
 def __main__():
   # return main_one_trial_only()
   # return main_range()
-  # return test_eeg()
-  if run_profile:
-    import cProfile
-    cProfile.run('test_syntaxes()','syntax.prof')
-    import pstats
-    stats = pstats.Stats('syntax.prof')
-    stats.strip_dirs()
-    stats.sort_stats('cumulative')
-    stats.print_stats()
+  return main_eeg()
+  #return main_syntaxes()
+  #return main_russian()
+
 #%% RUN MAIN ##############################################################
 result = __main__()
