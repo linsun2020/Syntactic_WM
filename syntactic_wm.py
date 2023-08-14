@@ -137,7 +137,7 @@ class feat_connections:
         if not self.pivot_grammar:
             if self.long_term_learning == True and self.connection_type == 'cc':
                 # This part is for long term knowledge encoding between role neurons.
-                self.long_learnt_progress += self.current_learning
+                self.long_learnt_progress += np.maximum(0,self.current_learning)
                 self.long_learnt_progress = np.maximum(0,self.long_learnt_progress)
                 self.long_learnt_progress = np.minimum(1,self.long_learnt_progress)
         else: # during pivot_grammar
@@ -316,7 +316,7 @@ class feature_layer:
                             self.morph_word_conn_dict[str(n)+str(i)].noise = np.random.random()*(self.unified_noise*2) - self.unified_noise
         
                         
-    
+
     def input_activate(self, in_index=None):
         '''Function to directly activating a neuron.'''
         all_activated_words = []
@@ -374,7 +374,6 @@ class feature_layer:
                         else:
                             self.morph_dict[str(i)].direct_update(-1)
 
-        
 
     def update_temp_activation(self):
         '''Function to consolidate all the activations resulting from connections between neurons within this layer.'''
@@ -424,7 +423,7 @@ class feature_layer:
             for i in range(self.n_word_neurons):
                 self.word_neuron_dict[str(n)].temp_update_activate(self.word_neuron_dict[str(i)].act*self.input_node_connectivity)
     
-    
+
     def update_connections(self):
         '''Temporary update of the connection weights between neurons based on learning rule and learning rate.'''
 
@@ -488,7 +487,6 @@ class feature_layer:
                         if n != j:
                             self.morph_word_conn_dict[str(j)+str(i)].conjugal_update(curr_learn/2)
                             
-  
     def update_decay(self):
         '''Decay all nodes.'''
         
@@ -502,7 +500,6 @@ class feature_layer:
             for n in self.morph_nodes:
                 self.morph_dict[str(n)].update_decay()
             
-
     def update_all_activation(self):
         '''Function to update all neurons and connection weights to their final state of activation at the end of this time step.'''
         
