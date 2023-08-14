@@ -10,7 +10,7 @@ By working through each notebook, you will gain a full understanding of how each
 ## Getting started
 
 1. Ensure that you have the following dependencies in your Python environment: `numpy`, `matplotlib`, `seaborn`. <br>
-2. Download the Jupyter notebooks and syntactic_wm.py. <br>
+2. Download the Jupyter notebooks and syntactic_wm.py (and syntactic_wm_SC_1.py and syntactic_wm_SC_2.py for soft constraint simulations (Simulation S2)). <br>
 3. Save the downloaded files into the same folder. <br>
 4. Open a Jupyter notebook and run in a Python environment. <br>
 5. Play
