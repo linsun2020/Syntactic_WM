@@ -445,23 +445,9 @@ class feature_layer:
         for n in range(self.n_role_neurons): # parent
             for i in range(self.n_role_neurons): # child
                 if not n == i:
-                # need to first calculate the to-be activation of this child node at the end of this step including the activation passed from the parent node 
-                    i_next_act = 0
-                    
-                    # calculating input from all other neurons, including current parent of interest
-                    i_next_act = np.sum(self.temp_act_mat[:,i])
-                    
-                    # sigmoid activating function
-                    i_next_act = sigmoid_enc(i_next_act,self.sigmoid_slope)*self.time_factor 
 
-                    # adding on self activation from start of current time step
-                    i_next_act += self.role_neuron_dict[str(i)].act
-                    
-                    i_next_act = np.minimum(i_next_act,1) # respect upper bound
-                    i_next_act = np.maximum(i_next_act,0) # respect lower bound
-
-                    # updating temporary connection store from parent to child based on input from parent and child's to be level of activation
-                    curr_learn = self.cc_conn_dict[str(n)+str(i)].update_connections(self.role_neuron_dict[str(n)].act,i_next_act, np.maximum(0,self.temp_act_mat[self.n_role_neurons,i]), self.role_neuron_dict[str(i)])
+                    # updating temporary connection store from parent to child                    
+                    curr_learn = self.cc_conn_dict[str(n)+str(i)].update_connections(self.role_neuron_dict[str(n)].act,self.role_neuron_dict[str(i)].act, np.maximum(0,self.temp_act_mat[self.n_role_neurons,i]), self.role_neuron_dict[str(i)])
 
                     # inhibition update of connection between the two role neurons in the opposite direction
                     self.cc_conn_dict[str(i)+str(n)].conjugal_update(curr_learn) 
