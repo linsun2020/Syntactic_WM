@@ -173,7 +173,7 @@ class feat_connections:
 class feature_layer:
     '''The working memory model.'''
     
-    def __init__(self, n_role_neurons=10, cc_connectivity_factor=0.5, sigmoid_slope=10, activation_decay=0, LR_c=20, LR_w=1, cc_max_connection=1, cf_max_connection=2, n_word_neurons=15, time_factor=0.5, LT_wc_knowledge=None, cc_learnt_weight=0.7, cf_learnt_weight=0.7, input_node_connectivity=0, LT_cc_knowledge=None, cc_floor_weight=-1, cf_floor_weight=-1, long_term_learning=False, pivot_grammar=False, partial_long_learnt_progress=1, wernic=False, morph_nodes=None, mw_connection=False, unified_noise=0, cc_noise=False, wc_noise=False, mw_noise=False, auto_gramm=False, cf_conj_factor=2, closed_class_word_roles=None, closed_class_learnt_weight=None, mc_connectivity_factor=2.5, mm_connectivity_factor=-10, mw_max_connection=2, mw_floor_weight=-1, mw_learnt_weight=0.7):
+    def __init__(self, n_role_neurons=10, cc_connectivity_factor=0.5, sigmoid_slope=10, activation_decay=0, LR_c=20, LR_w=1, cc_max_connection=1, cf_max_connection=2, n_word_neurons=15, time_factor=0.5, LT_wc_knowledge=None, cc_learnt_weight=0.7, cf_learnt_weight=0.7, input_node_connectivity=0, LT_cc_knowledge=None, cc_floor_weight=-1, cf_floor_weight=-1, long_term_learning=False, pivot_grammar=False, partial_long_learnt_progress=1, wernic=False, morph_nodes=None, mw_connection=False, unified_noise=0, cc_noise=False, wc_noise=False, mw_noise=False, auto_gramm=False, cf_conj_factor=2, closed_class_word_roles=None, closed_class_learnt_weight=None, mc_connectivity_factor=2.5, mm_connectivity_factor=-10, mw_max_connection=2, mw_floor_weight=-1, mw_learnt_weight=0.7, soft_constraint=False, j1=None, j2=None, k1=None, k2=None):
         
         # parameters for role neurons
         self.n_role_neurons = n_role_neurons
@@ -245,6 +245,13 @@ class feature_layer:
 
         # misc parameters for running the code
         self.recall = False
+        
+        # parameters for simulation S2
+        self.soft_constraint = soft_constraint
+        self.j1 = j1
+        self.j2 = j2
+        self.k1 = k1
+        self.k2 = k2
 
         
         
@@ -256,6 +263,13 @@ class feature_layer:
         for n in range(self.n_role_neurons): # parent index
             for i in range(self.n_role_neurons): # child index
                 self.cc_conn_dict[str(n)+str(i)] = feat_connections(n, i, self.LR_c, self.cc_max_connection, self.cc_learnt_weight-self.cc_floor_weight, connection_type='cc', floor_weight=self.cc_floor_weight, long_term_learning=self.long_term_learning, pivot_grammar=self.pivot_grammar)
+                
+                # Only for simulation S2
+                if self.soft_constraint:
+                    if n == 0 and i == 1:
+                        self.cc_conn_dict[str(n)+str(i)] = feat_connections(n, i, self.LR_c, self.cc_max_connection, self.j1, connection_type='cc', floor_weight=self.cc_floor_weight, long_term_learning=self.long_term_learning, pivot_grammar=self.pivot_grammar)
+                    elif n == 0 and i == 2:
+                        self.cc_conn_dict[str(n)+str(i)] = feat_connections(n, i, self.LR_c, self.cc_max_connection, self.j2, connection_type='cc', floor_weight=self.cc_floor_weight, long_term_learning=self.long_term_learning, pivot_grammar=self.pivot_grammar)
                     
                 if self.cc_noise == True:
                     self.cc_conn_dict[str(n)+str(i)].noise = np.random.random()*(self.unified_noise*2) - self.unified_noise
@@ -269,6 +283,13 @@ class feature_layer:
             for i in range(self.n_role_neurons): # to feature (conjunctive)
                 # dictionary label is from input to feature
                 self.cf_conn_dict[str(n)+str(i)] = feat_connections(n, i, self.LR_w, self.cf_max_connection, self.cf_learnt_weight-self.cf_floor_weight, connection_type='wc', floor_weight=self.cf_floor_weight, long_term_learning=self.long_term_learning, pivot_grammar=self.pivot_grammar)
+                
+                # Only for simulation S2
+                if self.soft_constraint:
+                    if n == 1 and i == 1:
+                        self.cf_conn_dict[str(n)+str(i)] = feat_connections(n, i, self.LR_w, self.cf_max_connection, self.k2, connection_type='wc', floor_weight=self.cf_floor_weight, long_term_learning=self.long_term_learning, pivot_grammar=self.pivot_grammar)
+                    elif n == 1 and i == 2:
+                        self.cf_conn_dict[str(n)+str(i)] = feat_connections(n, i, self.LR_w, self.cf_max_connection, self.k1, connection_type='wc', floor_weight=self.cf_floor_weight, long_term_learning=self.long_term_learning, pivot_grammar=self.pivot_grammar)
              
                 if self.wc_noise == True:
                     self.cf_conn_dict[str(n)+str(i)].noise = np.random.random()*(self.unified_noise*2) - self.unified_noise   
