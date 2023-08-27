@@ -96,13 +96,16 @@ class feat_connections:
         self.true_learnt_weight = 0    
         self.self_inhibit = 0
         self.current_learning = 0
+        self.pivot_grammar = pivot_grammar 
         self.connection = self.floor_weight #combined strength of both long and short connections
         self.short_connection = self.floor_weight #strength of connection resulting from short term synaptic plasticity
+        if self.pivot_grammar:
+            self.short_connection = 0
         if self.parent_index == self.child_index and self.connection_type == 'cc': # Diag of W_cc matrix is fixed and unencodable
             self.connection = self.self_inhibit
         self.LR = LR
         self.max_connection = max_connection # upper bound of the connection weight   
-        self.pivot_grammar = pivot_grammar      
+     
         self.noise = 0  
 
         
@@ -140,14 +143,19 @@ class feat_connections:
                 self.long_learnt_progress += np.maximum(0,self.current_learning)
                 self.long_learnt_progress = np.maximum(0,self.long_learnt_progress)
                 self.long_learnt_progress = np.minimum(1,self.long_learnt_progress)
+                self.short_connection = self.floor_weight
+            elif self.long_term_learning == True and self.connection_type == 'wc':
+                self.short_connection = self.floor_weight
         else: # during pivot_grammar
             if self.long_term_learning == True and self.connection_type == 'wc':
                 # This part is for long term knowledge encoding between role and word neurons.
                 self.long_learnt_progress += self.current_learning
                 self.long_learnt_progress = np.maximum(0,self.long_learnt_progress)
                 self.long_learnt_progress = np.minimum(1,self.long_learnt_progress)
+                self.short_connection = 0
             elif self.connection_type == 'cc':
-                self.short_connection = self.floor_weight
+                self.short_connection = 0
+                
         
         # actual learned weight is progress times maximum learning weight.
         self.true_learnt_weight = self.learnt_weight*self.long_learnt_progress
@@ -158,10 +166,6 @@ class feat_connections:
         # In some cases, the connection is neither long nor short encodable.
         if self.parent_index == self.child_index and self.connection_type == 'cc':
             self.connection = self.self_inhibit
-        
-        # If the model is in long term learning, any short term encoding is reset back to floor at the end of the time step.
-        if self.long_term_learning == True:
-            self.short_connection = self.floor_weight
                 
         # resetting learning of current time step    
         self.current_learning = 0
