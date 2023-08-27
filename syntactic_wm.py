@@ -147,7 +147,7 @@ class feat_connections:
                 self.long_learnt_progress = np.maximum(0,self.long_learnt_progress)
                 self.long_learnt_progress = np.minimum(1,self.long_learnt_progress)
             elif self.connection_type == 'cc':
-                self.short_connection = 0
+                self.short_connection = self.floor_weight
         
         # actual learned weight is progress times maximum learning weight.
         self.true_learnt_weight = self.learnt_weight*self.long_learnt_progress
