@@ -67,13 +67,13 @@ class Model:
     #####################
     ## 1. Model definition
     M.decay     = 1.0    # decay of activity per timestep = beta (1 = no decay)
-    M.learnCC   = 30     # learning rate for CF weights
-    M.learnFC   = 2      #               for CC weights
-    M.gainWff   = -0.5   # inhibition between features of same dimension
-    M.gainWccL  = 5.7    # gain of long-term weights  k_L
+    M.learnCC   = 50     # learning rate for CF weights
+    M.learnFC   = 1      #               for CC weights
+    M.gainWff   = -1.5   # inhibition between features of same dimension
+    M.gainWccL  = 4.7    # gain of long-term weights  k_L
     M.gainWfcL  = 1.7    # 
-    M.rangeWfc  = (-1,2) # constrain short term weights to this range (-k, eps-k)
-    M.rangeWcc  = (-5,1)
+    M.rangeWfc  = (-1,1.5) # constrain short term weights to this range (-k, eps-k)
+    M.rangeWcc  = (-4,0.75)
     M.noiseC    = 0.02
     M.recallBias= 0.5    # change in gain at recall
     
@@ -82,7 +82,7 @@ class Model:
       M.rangeWfc = (-2,4)
       M.gainWccL = 15.7
       M.learnCC  = 50
-      M.rangeWcc = (-15,8)
+      M.rangeWcc = (-7.5,4.5)
       M.gainWff  = -1
     elif regime == Model.Regime.Aphasias:
       pass
