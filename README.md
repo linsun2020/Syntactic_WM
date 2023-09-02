@@ -9,7 +9,7 @@ By working through each notebook, you will gain a full understanding of how each
 
 ## Getting started
 
-1. Ensure that you have the following dependencies in your Python environment: `numpy`, `matplotlib`, `seaborn`. <br>
+1. Ensure that you have the following dependencies in your Python environment: `NumPy`, `SciPy`, `Matplotlib` and `Seaborn`. <br>
 2. Download the Jupyter notebooks and syntactic_wm.py. <br>
 3. Save the downloaded files into the same folder. <br>
 4. Open a Jupyter notebook and run in a Python environment. <br>
