@@ -29,8 +29,8 @@ We have provided 6 notebooks -
 
 ## Authors
 
-* **Lin Sun** - *(Queen Square Institute of Neurology, University College London)*
-* **Sanjay G Manohar** - *(Nuffield Department of Clinical Neurosciences, University of Oxford)*
+* **Lin Sun**
+* **Sanjay G Manohar**
 
 ## Citation
 If you find this model of syntactic working memory to be useful, please reference our work at:
