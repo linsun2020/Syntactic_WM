@@ -5,6 +5,8 @@ import random
 import seaborn as sn
 from itertools import groupby 
 
+#test
+
 
 def sigmoid(x,sigmoid_slope): return 1/(1+np.exp(-sigmoid_slope*x)) # standard sigmoid function
 def sigmoid_enc(x,sigmoid_slope): return sigmoid(x-0.5,sigmoid_slope) # sigmoid function for during encoding 
