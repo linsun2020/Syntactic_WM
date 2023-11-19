@@ -25,7 +25,7 @@ We have provided 6 notebooks -
 **[Priming](https://github.com/linsun2020/Syntactic_WM/blob/main/Priming.ipynb)**: lexical and syntactic priming experiments during comprehension. <br>
 **[Bock experiment](https://github.com/linsun2020/Syntactic_WM/blob/main/Bock%20experiment.ipynb)**: simulation of Bock's experiment from 1986. <br>
 **[Long term encoding](https://github.com/linsun2020/Syntactic_WM/blob/main/Long%20term%20encoding.ipynb)**: acquisition of long-term semantic and syntactic knowledge with our model. <br>
-**EEG simulation** is contained in sanjay_replication.py
+**[ERP simulation](https://github.com/linsun2020/Syntactic_WM/blob/main/EEG_sim.ipynb)**: ERP simulations of break in syntax and grammatical disagreement. <br>
 
 ## Authors
 
