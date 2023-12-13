@@ -1,5 +1,5 @@
 # Syntactic_WM
-This is a repository of Jupyter notebooks and Python code behind our manuscript - Syntax through Hebbian synapses.
+This is a repository of Jupyter notebooks and Python code behind our manuscript - Syntax through rapid synaptic changes.
 
 Here, you will find all the necessary machinery to perform simulations outlined in our paper.
 
